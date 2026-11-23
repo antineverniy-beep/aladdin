@@ -8,8 +8,10 @@ import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.telecom.PhoneAccount
 import android.telecom.TelecomManager
 import android.telephony.SmsManager
+import android.telephony.SubscriptionManager
 import android.view.KeyEvent
 import androidx.core.content.ContextCompat
 
@@ -19,11 +21,42 @@ object PhoneActions {
     private fun granted(ctx: Context, p: String) =
         ContextCompat.checkSelfPermission(ctx, p) == PackageManager.PERMISSION_GRANTED
 
-    fun call(ctx: Context, number: String): Boolean {
+    /** Telefon (yoki Telegram/WhatsApp) qo'ng'irog'i ketyaptimi yoki jiringlayaptimi. */
+    fun inCall(ctx: Context): Boolean {
+        try {
+            if (granted(ctx, Manifest.permission.READ_PHONE_STATE) &&
+                ctx.getSystemService(TelecomManager::class.java).isInCall
+            ) return true
+        } catch (_: Exception) {}
+        val mode = ctx.getSystemService(AudioManager::class.java).mode
+        return mode == AudioManager.MODE_IN_CALL || mode == AudioManager.MODE_RINGTONE ||
+            (mode == AudioManager.MODE_IN_COMMUNICATION && !BtAudio.active)
+    }
+
+    /**
+     * Qo'ng'iroq. sim = 1/2 — aniq SIM; 0 — standart SIM, standart yo'q bo'lsa 1-SIM
+     * (aks holda Honor SIM tanlash oynasini chiqaradi va haydovchi ekranga tegishi kerak bo'ladi).
+     */
+    fun call(ctx: Context, number: String, sim: Int = 0): Boolean {
         if (!granted(ctx, Manifest.permission.CALL_PHONE)) return false
+        // Magnitolani "qo'l bo'sh" rejimidan bo'shatamiz — qo'ng'iroq o'zi ulaydi
+        BtAudio.stop()
         val uri = Uri.fromParts("tel", number, null)
+        val tm = ctx.getSystemService(TelecomManager::class.java)
+        val extras = Bundle()
+        if (granted(ctx, Manifest.permission.READ_PHONE_STATE)) {
+            try {
+                val accounts = tm.callCapablePhoneAccounts
+                val handle = when {
+                    sim in 1..accounts.size -> accounts[sim - 1]
+                    accounts.size > 1 && tm.getDefaultOutgoingPhoneAccount(PhoneAccount.SCHEME_TEL) == null -> accounts[0]
+                    else -> null
+                }
+                if (handle != null) extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, handle)
+            } catch (_: Exception) {}
+        }
         return try {
-            ctx.getSystemService(TelecomManager::class.java).placeCall(uri, Bundle())
+            tm.placeCall(uri, extras)
             true
         } catch (e: Exception) {
             try {
@@ -38,17 +71,31 @@ object PhoneActions {
     fun sendSms(ctx: Context, number: String, text: String, name: String): String {
         if (!granted(ctx, Manifest.permission.SEND_SMS)) return "SMS yuborishga ruxsat berilmagan."
         return try {
-            val sms: SmsManager = if (Build.VERSION.SDK_INT >= 31) {
-                ctx.getSystemService(SmsManager::class.java)
-            } else {
-                @Suppress("DEPRECATION") SmsManager.getDefault()
-            }
+            val sms = smsManager(ctx)
             val parts = sms.divideMessage(text)
             sms.sendMultipartTextMessage(number, null, parts, null, null)
             "SMS yuborildi: $name"
         } catch (e: Exception) {
             "SMS yuborilmadi: ${e.message}"
         }
+    }
+
+    /** Ikki SIM'da "har safar so'rash" sozlangan bo'lsa ham SMS jim ketmay qolmasligi uchun aniq SIM tanlaymiz. */
+    @Suppress("DEPRECATION")
+    private fun smsManager(ctx: Context): SmsManager {
+        val base: SmsManager =
+            if (Build.VERSION.SDK_INT >= 31) ctx.getSystemService(SmsManager::class.java) else SmsManager.getDefault()
+        var subId = SubscriptionManager.getDefaultSmsSubscriptionId()
+        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID && granted(ctx, Manifest.permission.READ_PHONE_STATE)) {
+            subId = try {
+                ctx.getSystemService(SubscriptionManager::class.java)
+                    .activeSubscriptionInfoList?.firstOrNull()?.subscriptionId
+                    ?: SubscriptionManager.INVALID_SUBSCRIPTION_ID
+            } catch (_: Exception) { SubscriptionManager.INVALID_SUBSCRIPTION_ID }
+        }
+        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) return base
+        return if (Build.VERSION.SDK_INT >= 31) base.createForSubscriptionId(subId)
+        else SmsManager.getSmsManagerForSubscriptionId(subId)
     }
 
     fun media(ctx: Context, action: String): String {

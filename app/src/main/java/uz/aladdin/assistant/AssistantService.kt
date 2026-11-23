@@ -20,7 +20,6 @@ import androidx.core.content.ContextCompat
 class AssistantService : Service() {
     private lateinit var wake: Listener
     private val h = Handler(Looper.getMainLooper())
-    private val compactWake = Regex("al+[aoe]d+[iye]n")
     private val loop = Runnable { runWake() }
     private val obs = Assistant.Observer { s, _ ->
         if (s == Assistant.State.IDLE) scheduleWake(1200)
@@ -83,17 +82,18 @@ class AssistantService : Service() {
 
     private fun runWake() {
         if (!Prefs.wakeWord || Assistant.state != Assistant.State.IDLE) return
+        // Telefonda gaplashayotganda mikrofonni band qilmaymiz
+        if (PhoneActions.inCall(this)) { scheduleWake(3000); return }
         wake.listen(lang = Prefs.wakeLang) { text ->
-            if (text.isNullOrBlank() || !isWake(text)) { scheduleWake(300); return@listen }
+            if (text.isNullOrBlank() || !Text.isWake(text)) {
+                // Jiddiy xatolarda (mikrofon band, ruxsat yo'q, xizmat yo'q) batareyani tejash uchun sekinlashamiz
+                val serious = wake.lastError in setOf(-1, -2, 3, 5, 8, 9, 11, 12, 13)
+                scheduleWake(if (serious) 5000 else 300)
+                return@listen
+            }
             // "Привет Аладин" → "Labbay" va buyruqni tinglash
             Assistant.greetAndListen(this)
         }
-    }
-
-    /** "привет аладин", "привет аладдин", "салом аладдин", "аладин" ... */
-    private fun isWake(text: String): Boolean {
-        val compact = Contacts.norm(text).replace(" ", "")
-        return compactWake.containsMatchIn(compact)
     }
 
     companion object {

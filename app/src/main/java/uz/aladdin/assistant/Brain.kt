@@ -1,5 +1,6 @@
 package uz.aladdin.assistant
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -20,10 +21,16 @@ class ApiError(msg: String) : Exception(msg)
 
 /** OpenAI bilan erkin muloqot + funksiyalar (qo'ng'iroq, xabarlar, musiqa...). */
 object Brain {
+    // Haydovchi uzoq kutmasligi kerak: tunnel/internet yo'q bo'lsa tez xabar beramiz
     private val http = OkHttpClient.Builder()
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(90, TimeUnit.SECONDS)
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .callTimeout(40, TimeUnit.SECONDS)
         .build()
+
+    /** Foydalanuvchi gaplari hisoblagichi — SMS tasdig'i faqat keyingi gapda qabul qilinadi. */
+    @Volatile var turn = 0
+        private set
     private val JSON = "application/json".toMediaType()
     private val history = mutableListOf<JSONObject>()
     private val lock = Mutex()
@@ -35,10 +42,13 @@ object Brain {
             Sen — Aladdin, haydovchilar uchun aqlli ovozli yordamchisan.
             Doim o'zbek tilida (lotin yozuvida) javob ber. Foydalanuvchi ruscha gapirsa ham tushun, lekin o'zbekcha javob ber.
             Javobing ovoz chiqarib o'qiladi va haydovchi rul ortida: qisqa bo'lsin (odatda 1–3 gap), markdown, ro'yxat, emoji, havolalar ishlatma.
-            Buyruqning ma'nosini o'zing tushun va kerakli funksiyani chaqir: qo'ng'iroq, xabarlarni o'qish, SMS yuborish, musiqa, ovoz balandligi, navigator, ilovani ochish.
+            Buyruqning ma'nosini o'zing tushun va kerakli funksiyani chaqir: qo'ng'iroq, xabarlarni o'qish, SMS yuborish, Telegram/WhatsApp'ga javob, musiqa, ovoz balandligi, navigator, ilovani ochish.
             Kontakt ismini funksiyaga qo'shimchalarsiz yubor ("Aliga qo'ng'iroq qil" → "Ali", "onamga" → "Onam").
+            Agar funksiya bir nechta mos kontakt yoki raqam qaytarsa — hech qachon taxmin qilma: variantlarni qisqa aytib (ism, raqam turi, oxirgi 4 raqam), qaysi biri ekanini so'ra; javobni which parametriga berib funksiyani qayta chaqir.
+            Raqamlarni aytganda oxirgi 4 raqamni juft-juft ayt (masalan "qirq besh — oltmish yetti").
             Xabarlarni o'qiganda: kimdan, qayerdan (SMS/Telegram/WhatsApp) va matnini tabiiy qilib aytib ber.
-            SMS yuborishdan oldin kimga va qanday matn ketishini aytib, tasdiq so'ra; faqat "ha" desa send_sms ni chaqir.
+            send_sms va reply_message xabarni yubormaydi, faqat tayyorlaydi. Kimga va qanday matn ketishini aytib "Yuboraymi?" deb so'ra. Foydalanuvchi keyingi gapida rozi bo'lsa ("ha", "yubor", "да") confirm_send ni chaqir, "yo'q" desa cancel_send.
+            Foydalanuvchi "ikkinchi SIM" desa, call_contact da sim=2 ber.
             Agar savol aniq bo'lmasa, qisqa aniqlashtiruvchi savol ber (savol belgisi bilan tugat).
             Haydovchiga xavfsizlik birinchi o'rinda: uzun matnlarni qisqartirib ayt.
             Hozirgi sana va vaqt: $now.
@@ -50,11 +60,13 @@ object Brain {
             return@withContext "OpenAI kaliti kiritilmagan. Sozlamalarga kirib, kalitni yozing."
         }
         lock.withLock {
+            turn++
             val now = System.currentTimeMillis()
             if (now - lastAt > 10 * 60_000) history.clear() // 10 daqiqadan keyin yangi suhbat
             lastAt = now
-            history.add(JSONObject().put("role", "user").put("content", text))
             trim()
+            val snapshot = history.size
+            history.add(JSONObject().put("role", "user").put("content", text))
             try {
                 repeat(6) {
                     val msgs = JSONArray().put(JSONObject().put("role", "system").put("content", systemPrompt()))
@@ -87,17 +99,42 @@ object Brain {
                         )
                     }
                 }
+                rollback(snapshot)
                 "Kechirasiz, buyruqni oxirigacha bajara olmadim."
+            } catch (e: CancellationException) {
+                // To'xtatildi — chala qolgan qadamlarni olib tashlaymiz, aks holda keyingi so'rov buziladi
+                rollback(snapshot)
+                throw e
             } catch (e: ApiError) {
-                history.clear()
+                rollback(snapshot)
                 e.message ?: "OpenAI xatosi."
             } catch (e: IOException) {
-                history.clear()
-                "Internet aloqasi yo'q yoki server javob bermadi."
+                rollback(snapshot)
+                "Internet aloqasi yo'q yoki juda sust. Birozdan keyin qayta urinib ko'ring."
             } catch (e: Exception) {
-                history.clear()
+                rollback(snapshot)
                 "Kutilmagan xato: ${e.message}"
             }
+        }
+    }
+
+    private fun rollback(size: Int) {
+        while (history.size > size) history.removeAt(history.size - 1)
+    }
+
+    /** Sozlamalardagi "Tekshirish" tugmasi uchun: kalit va model ishlayaptimi. */
+    suspend fun ping(): String = withContext(Dispatchers.IO) {
+        if (Prefs.apiKey.isBlank()) return@withContext "Kalit kiritilmagan."
+        try {
+            val msgs = JSONArray().put(JSONObject().put("role", "user").put("content", "Salom"))
+            post(JSONObject().put("model", Prefs.model).put("messages", msgs))
+            "✓ Kalit va model (${Prefs.model}) ishlayapti."
+        } catch (e: ApiError) {
+            e.message ?: "OpenAI xatosi."
+        } catch (e: IOException) {
+            "Internetga ulanib bo'lmadi."
+        } catch (e: Exception) {
+            "Xato: ${e.message}"
         }
     }
 

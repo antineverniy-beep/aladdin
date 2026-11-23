@@ -42,8 +42,9 @@ object Speaker {
     private val mutex = Mutex()
     private val jobs = CopyOnWriteArrayList<Job>()
     private val http = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
+        // Internet yo'q bo'lsa tezda telefon ovoziga o'tamiz
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
         .build()
 
     private var tts: TextToSpeech? = null
@@ -102,6 +103,12 @@ object Speaker {
             .setAudioAttributes(attrs)
             .build()
         am.requestAudioFocus(focus)
+        // Musiqa ovozi o'chirilgan/juda past bo'lsa ham javob eshitilsin (keyin avvalgi holiga qaytaramiz)
+        val stream = if (BtAudio.active) AudioManager.STREAM_VOICE_CALL else AudioManager.STREAM_MUSIC
+        val before = try { am.getStreamVolume(stream) } catch (_: Exception) { -1 }
+        val minVol = (am.getStreamMaxVolume(stream) * 0.4).toInt().coerceAtLeast(1)
+        val raised = before in 0 until minVol
+        if (raised) try { am.setStreamVolume(stream, minVol, 0) } catch (_: Exception) {}
         try {
             var ok = false
             if (Prefs.openAiTts && Prefs.apiKey.isNotBlank()) {
@@ -115,11 +122,26 @@ object Speaker {
             }
             if (!ok) speakLocal(clean)
         } finally {
+            if (raised) try {
+                if (am.getStreamVolume(stream) == minVol) am.setStreamVolume(stream, before, 0)
+            } catch (_: Exception) {}
             am.abandonAudioFocusRequest(focus)
         }
     }
 
+    /** Qisqa, tez-tez aytiladigan iboralar ("Labbay") bir marta yuklanib, telefonda saqlanadi. */
+    private fun cacheFile(text: String): File? {
+        if (text.length > 24) return null
+        val key = "${Prefs.voice}|$text".hashCode().toUInt()
+        return File(App.instance.filesDir, "tts_$key.mp3")
+    }
+
     private suspend fun playOpenAi(text: String) {
+        val cached = cacheFile(text)
+        if (cached != null && cached.length() > 0) {
+            playFile(cached)
+            return
+        }
         val file = withContext(Dispatchers.IO) {
             val body = JSONObject()
                 .put("model", "gpt-4o-mini-tts")
@@ -137,13 +159,20 @@ object Speaker {
             http.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) throw IOException("TTS ${resp.code}: ${resp.body?.string()?.take(200)}")
                 val f = File(App.instance.cacheDir, "tts_${System.nanoTime()}.mp3")
-                f.outputStream().use { out -> resp.body!!.byteStream().copyTo(out) }
+                try {
+                    f.outputStream().use { out -> resp.body!!.byteStream().copyTo(out) }
+                } catch (e: Exception) {
+                    f.delete(); throw e
+                }
                 f
             }
         }
         try {
             playFile(file)
         } finally {
+            if (cached != null && file.length() > 0 && !file.renameTo(cached)) {
+                try { file.copyTo(cached, overwrite = true) } catch (_: Exception) {}
+            }
             file.delete()
         }
     }

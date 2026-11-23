@@ -92,6 +92,7 @@ class MainActivity : AppCompatActivity() {
         val need = mutableListOf(
             Manifest.permission.RECORD_AUDIO,
             Manifest.permission.CALL_PHONE,
+            Manifest.permission.READ_PHONE_STATE,
             Manifest.permission.READ_CONTACTS,
             Manifest.permission.RECEIVE_SMS,
             Manifest.permission.READ_SMS,

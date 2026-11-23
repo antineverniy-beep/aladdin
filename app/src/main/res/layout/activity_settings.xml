@@ -80,7 +80,7 @@
         <Button
             android:id="@+id/test"
             style="@style/Btn"
-            android:text="Ovozni sinash" />
+            android:text="Kalit va ovozni tekshirish" />
 
         <Button
             android:id="@+id/notifAccess"

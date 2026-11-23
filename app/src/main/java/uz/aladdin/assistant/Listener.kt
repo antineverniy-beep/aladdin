@@ -15,6 +15,10 @@ class Listener(private val ctx: Context) {
     private var session = 0
     private val main = Handler(Looper.getMainLooper())
 
+    /** Oxirgi xato kodi (SpeechRecognizer.ERROR_*), 0 — xato yo'q, -1 — xizmat yo'q, -2 — ishga tushmadi. */
+    @Volatile var lastError = 0
+        private set
+
     fun listen(
         lang: String = Prefs.sttLang,
         onPartial: (String) -> Unit = {},
@@ -22,7 +26,9 @@ class Listener(private val ctx: Context) {
         onResult: (String?) -> Unit,
     ) {
         cancel()
+        lastError = 0
         if (!SpeechRecognizer.isRecognitionAvailable(ctx)) {
+            lastError = -1
             onResult(null); return
         }
         val my = ++session
@@ -36,6 +42,7 @@ class Listener(private val ctx: Context) {
             override fun onEndOfSpeech() {}
             override fun onError(error: Int) {
                 if (my != session) return
+                lastError = error
                 release(); onResult(null)
             }
             override fun onResults(results: Bundle?) {
@@ -63,6 +70,7 @@ class Listener(private val ctx: Context) {
         try {
             r.startListening(i)
         } catch (e: Exception) {
+            lastError = -2
             release(); onResult(null)
         }
     }

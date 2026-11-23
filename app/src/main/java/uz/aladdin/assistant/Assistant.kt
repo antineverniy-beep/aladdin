@@ -43,18 +43,36 @@ object Assistant {
         set(State.IDLE, text)
     }
 
+    /** Nutqni tanish xatosini tushunarli qilib aytadi. */
+    private fun errorText(code: Int): String = when (code) {
+        1, 2, 4 -> "Internet sust yoki yo'q — ovozni taniy olmadim."
+        3 -> "Mikrofon ishlamadi. Qaytadan urinib ko'ring."
+        8 -> "Mikrofon band. Birozdan keyin urinib ko'ring."
+        9 -> "Mikrofonga ruxsat berilmagan."
+        12, 13 -> "O'zbek tili nutq paketi topilmadi. Google ilovasini yangilang yoki Sozlamalarda tilni ru-RU qiling."
+        -1 -> "Nutqni tanish xizmati topilmadi. Telefonga Google ilovasini o'rnating."
+        else -> "Eshitmadim. Qaytadan urinib ko'ring."
+    }
+
+    private fun busyWithCall(ctx: Context): Boolean {
+        if (!PhoneActions.inCall(ctx)) return false
+        set(State.IDLE, "Telefonda gaplashayotganingizda tinglay olmayman.")
+        return true
+    }
+
     /** Foydalanuvchini tinglashni boshlaydi. */
     fun listen(ctx: Context) {
         Speaker.stop()
         job?.cancel()
+        if (busyWithCall(ctx)) { BtAudio.stop(); return }
         set(State.LISTENING, "Eshityapman…")
         job = scope.launch {
             BtAudio.start()
             val l = stt ?: Listener(ctx.applicationContext).also { stt = it }
             l.listen(
                 onPartial = { partial ->
-                    val cmd = stripEndWord(partial)
-                    if (cmd != null && cmd.isNotBlank()) {
+                    val cmd = Text.stripEndWord(partial)
+                    if (!cmd.isNullOrBlank()) {
                         // "тезда" eshitildi — tinglashni darhol to'xtatib, buyruqni bajaramiz
                         l.cancel()
                         handle(ctx, cmd)
@@ -64,34 +82,18 @@ object Assistant {
                 },
                 onLevel = { levelListener?.invoke(it) },
             ) { text ->
-                val cmd = text?.let { stripEndWord(it) ?: it }
-                if (cmd.isNullOrBlank()) finish("Eshitmadim. Qaytadan urinib ko'ring.")
+                val cmd = text?.let { Text.stripEndWord(it) ?: it }
+                if (cmd.isNullOrBlank()) finish(if (text == null) errorText(l.lastError) else "Eshitmadim. Qaytadan urinib ko'ring.")
                 else handle(ctx, cmd)
             }
         }
-    }
-
-    /**
-     * Buyruq "тезда" so'zi bilan tugasa — shu so'zsiz buyruqni qaytaradi, aks holda null.
-     * Masalan: "Санжарга телефон қил тезда" → "Санжарга телефон қил".
-     */
-    fun stripEndWord(text: String): String? {
-        val words = text.trim().split(Regex("\\s+")).toMutableList()
-        if (words.isEmpty()) return null
-        val last = Contacts.norm(words.last())
-        val prev = if (words.size >= 2) Contacts.norm(words[words.size - 2]) else ""
-        when {
-            last == "tezda" -> words.removeAt(words.size - 1)
-            last == "da" && prev == "tez" -> { words.removeAt(words.size - 1); words.removeAt(words.size - 1) }
-            else -> return null
-        }
-        return words.joinToString(" ").trim(' ', ',', '.', '!', '?')
     }
 
     /** "Привет Аладин" deb chaqirilganda: "Labbay" deydi va tinglaydi. */
     fun greetAndListen(ctx: Context) {
         Speaker.stop()
         job?.cancel()
+        if (busyWithCall(ctx)) return
         set(State.SPEAKING, "Labbay")
         job = scope.launch {
             BtAudio.start()
@@ -108,7 +110,7 @@ object Assistant {
             callPlaced = false
             val reply = Brain.ask(text)
             if (callPlaced) {
-                // Qo'ng'iroq ketdi — magnitolani telefon suhbatiga bo'shatamiz
+                // Qo'ng'iroq ketdi — gapirmaymiz, magnitola qo'ng'iroqqa bo'sh qoladi
                 finish(reply)
                 return@launch
             }

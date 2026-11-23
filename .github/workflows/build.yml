@@ -34,7 +34,14 @@ jobs:
           echo "$ALADDIN_KEYSTORE" | base64 -d > app/aladdin.p12
 
       - name: APK yig'ish
-        run: gradle assembleDebug --no-daemon --stacktrace
+        run: gradle testDebugUnitTest assembleDebug --no-daemon --stacktrace
+
+      - name: Test natijalari
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-natijalari
+          path: app/build/reports/tests/
 
       - name: Nomini o'zgartirish
         run: cp app/build/outputs/apk/debug/app-debug.apk Aladdin.apk

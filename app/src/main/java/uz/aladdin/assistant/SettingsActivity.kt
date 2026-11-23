@@ -9,8 +9,20 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 class SettingsActivity : AppCompatActivity() {
+    private val ui = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    override fun onDestroy() {
+        ui.cancel()
+        super.onDestroy()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
@@ -58,7 +70,13 @@ class SettingsActivity : AppCompatActivity() {
             Prefs.apiKey = key.text.toString()
             Prefs.voice = voice.text.toString()
             Prefs.openAiTts = tts.isChecked
-            Speaker.speak("Assalomu alaykum! Men Aladdin, sizning yo'ldagi yordamchingizman.")
+            Prefs.model = model.text.toString()
+            Toast.makeText(this, "Tekshirilmoqda…", Toast.LENGTH_SHORT).show()
+            ui.launch {
+                val res = Brain.ping()
+                Toast.makeText(this@SettingsActivity, res, Toast.LENGTH_LONG).show()
+                Speaker.speak("Assalomu alaykum! Men Aladdin, sizning yo'ldagi yordamchingizman.")
+            }
         }
         findViewById<Button>(R.id.notifAccess).setOnClickListener {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
