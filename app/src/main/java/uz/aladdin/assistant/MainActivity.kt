@@ -60,7 +60,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (isAssistIntent(intent)) talk()
+        if (isAssistIntent(intent)) talk(greet = true)
     }
 
     override fun onStart() {
@@ -108,22 +108,28 @@ class MainActivity : AppCompatActivity() {
             return
         }
         AssistantService.start(this)
-        if (pendingTalk) { pendingTalk = false; talk() }
+        if (pendingTalk) { pendingTalk = false; talk(greet = true) } else Honor.askBattery(this)
     }
 
-    private fun talk() {
+    /** greet = true: magnitola tugmasi / "Uy" tugmasi orqali chaqirilganda avval "Labbay" deydi. */
+    private fun talk(greet: Boolean = false) {
         if (!granted(Manifest.permission.RECORD_AUDIO)) { pendingTalk = true; askPerms(); return }
         if (Prefs.apiKey.isBlank()) {
             Toast.makeText(this, "OpenAI kalitini kiriting", Toast.LENGTH_LONG).show()
             startActivity(Intent(this, SettingsActivity::class.java))
             return
         }
-        Assistant.listen(this)
+        if (greet) Assistant.greetAndListen(this) else Assistant.listen(this)
     }
 
     private fun render(s: Assistant.State, t: String) {
         val (label, color, st) = when (s) {
-            Assistant.State.IDLE -> Triple("GAPIRISH", "#2E7D32", "Tayyor. Tugmani bosing.")
+            Assistant.State.IDLE -> Triple(
+                "GAPIRISH", "#2E7D32",
+                if (BtAudio.carConnected() && Prefs.carMic) "Mashina ulangan (${BtAudio.carName() ?: "Bluetooth"}). «Привет Аладин» deng yoki tugmani bosing."
+                else if (Prefs.wakeWord) "Tayyor. «Привет Аладин» deng yoki tugmani bosing."
+                else "Tayyor. Tugmani bosing."
+            )
             Assistant.State.LISTENING -> Triple("TINGLAYAPMAN", "#C62828", "Gapiring…")
             Assistant.State.THINKING -> Triple("O'YLAYAPMAN", "#1565C0", "Javob tayyorlanmoqda…")
             Assistant.State.SPEAKING -> Triple("TO'XTATISH", "#6A1B9A", "Gapiryapman…")

@@ -64,7 +64,12 @@
         <androidx.appcompat.widget.SwitchCompat
             android:id="@+id/wakeWord"
             style="@style/Switch"
-            android:text="«Aladdin» deb ovoz bilan chaqirish (batareyani ko'proq sarflaydi)" />
+            android:text="«Привет Аладин» deb ovoz bilan chaqirish" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/carMic"
+            style="@style/Switch"
+            android:text="Mashina magnitolasi mikrofoni (Bluetooth, Pioneer)" />
 
         <Button
             android:id="@+id/save"
@@ -87,9 +92,19 @@
             style="@style/Btn"
             android:text="Standart yordamchi qilish" />
 
+        <Button
+            android:id="@+id/battery"
+            style="@style/Btn"
+            android:text="Batareya cheklovini o'chirish (Honor)" />
+
+        <Button
+            android:id="@+id/overlay"
+            style="@style/Btn"
+            android:text="Boshqa ilovalar ustida ko'rsatish" />
+
         <TextView
             style="@style/Label"
             android:layout_marginTop="16dp"
-            android:text="Maslahat: «Standart yordamchi qilish» → «Raqamli yordamchi ilovasi» → Aladdin ni tanlang. Shunda «Uy» tugmasini uzoq bosib yoki quloqchin tugmasi bilan chaqirasiz." />
+            android:text="Honor uchun maslahat:\n1) «Batareya cheklovini o'chirish» → Ruxsat berish.\n2) Sozlamalar → Batareya → Ilovalarni ishga tushirish → Aladdin → «Qo'lda boshqarish»: uchala katakni yoqing.\n3) «Standart yordamchi qilish» → Raqamli yordamchi → Aladdin. Shunda Pioneer magnitoladagi ovoz (mikrofon) tugmasi ham Aladdin'ni chaqiradi.\n4) Oxirgi ilovalar ro'yxatida Aladdin oynasini pastga tortib, qulflab qo'ying." />
     </LinearLayout>
 </ScrollView>

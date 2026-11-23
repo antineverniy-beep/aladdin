@@ -50,10 +50,15 @@ object Speaker {
     @Volatile private var ttsReady = false
     private var player: MediaPlayer? = null
 
-    private val attrs = AudioAttributes.Builder()
-        .setUsage(AudioAttributes.USAGE_ASSISTANT)
-        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-        .build()
+    /** Mashina mikrofoni yoqilgan bo'lsa — ovoz magnitolaga "qo'l bo'sh" kanali orqali ketadi. */
+    private val attrs: AudioAttributes
+        get() = AudioAttributes.Builder()
+            .setUsage(
+                if (BtAudio.active) AudioAttributes.USAGE_VOICE_COMMUNICATION
+                else AudioAttributes.USAGE_ASSISTANT
+            )
+            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+            .build()
 
     fun init(ctx: Context) {
         if (tts != null) return

@@ -20,7 +20,7 @@ import androidx.core.content.ContextCompat
 class AssistantService : Service() {
     private lateinit var wake: Listener
     private val h = Handler(Looper.getMainLooper())
-    private val wakeRe = Regex("^a?l+[ao]d+[iye]n")
+    private val compactWake = Regex("al+[aoe]d+[iye]n")
     private val loop = Runnable { runWake() }
     private val obs = Assistant.Observer { s, _ ->
         if (s == Assistant.State.IDLE) scheduleWake(1200)
@@ -61,7 +61,7 @@ class AssistantService : Service() {
         val n = NotificationCompat.Builder(this, App.CHANNEL_SERVICE)
             .setSmallIcon(R.drawable.ic_mic)
             .setContentTitle("Aladdin ishlayapti")
-            .setContentText(if (Prefs.wakeWord) "«Aladdin» deb chaqiring yoki GAPIRISH ni bosing" else "Gapirish uchun GAPIRISH ni bosing")
+            .setContentText(if (Prefs.wakeWord) "«Привет Аладин» deb chaqiring yoki GAPIRISH ni bosing" else "Gapirish uchun GAPIRISH ni bosing")
             .setContentIntent(open)
             .addAction(0, "GAPIRISH", talk)
             .addAction(0, "O'chirish", stop)
@@ -83,14 +83,17 @@ class AssistantService : Service() {
 
     private fun runWake() {
         if (!Prefs.wakeWord || Assistant.state != Assistant.State.IDLE) return
-        wake.listen { text ->
-            if (text.isNullOrBlank()) { scheduleWake(300); return@listen }
-            val words = text.trim().split(Regex("\\s+"))
-            val idx = words.indexOfFirst { wakeRe.containsMatchIn(Contacts.norm(it)) }
-            if (idx < 0) { scheduleWake(300); return@listen }
-            val cmd = words.drop(idx + 1).joinToString(" ").trim(' ', ',', '.', '!')
-            if (cmd.length > 3) Assistant.handle(this, cmd) else Assistant.greetAndListen(this)
+        wake.listen(lang = Prefs.wakeLang) { text ->
+            if (text.isNullOrBlank() || !isWake(text)) { scheduleWake(300); return@listen }
+            // "Привет Аладин" → "Labbay" va buyruqni tinglash
+            Assistant.greetAndListen(this)
         }
+    }
+
+    /** "привет аладин", "привет аладдин", "салом аладдин", "аладин" ... */
+    private fun isWake(text: String): Boolean {
+        val compact = Contacts.norm(text).replace(" ", "")
+        return compactWake.containsMatchIn(compact)
     }
 
     companion object {

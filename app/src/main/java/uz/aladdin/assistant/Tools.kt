@@ -93,7 +93,10 @@ object Tools {
     private fun callContact(ctx: Context, who: String): String {
         val (c, err) = resolve(ctx, who)
         if (c == null) return err ?: "Topilmadi"
-        return if (PhoneActions.call(ctx, c.number)) "Qo'ng'iroq qilinmoqda: ${c.name}"
+        return if (PhoneActions.call(ctx, c.number)) {
+            Assistant.callPlaced = true
+            "Qo'ng'iroq qilinmoqda: ${c.name}"
+        }
         else "Qo'ng'iroq qilib bo'lmadi (ruxsat berilmagan bo'lishi mumkin)."
     }
 

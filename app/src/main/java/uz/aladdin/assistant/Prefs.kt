@@ -40,6 +40,20 @@ object Prefs {
         set(v) = putBool("auto_read", v)
 
     var wakeWord: Boolean
-        get() = sp.getBoolean("wake_word", false)
+        get() = sp.getBoolean("wake_word", true)
         set(v) = putBool("wake_word", v)
+
+    /** "Привет Аладин" ruscha aytilgani uchun chaqiruv so'zi ruscha tinglanadi. */
+    var wakeLang: String
+        get() = str("wake_lang", "ru-RU")
+        set(v) = putStr("wake_lang", v)
+
+    /** Bluetooth orqali ulangan mashina magnitolasi mikrofonini ishlatish. */
+    var carMic: Boolean
+        get() = sp.getBoolean("car_mic", true)
+        set(v) = putBool("car_mic", v)
+
+    var batteryAsked: Boolean
+        get() = sp.getBoolean("battery_asked", false)
+        set(v) = putBool("battery_asked", v)
 }

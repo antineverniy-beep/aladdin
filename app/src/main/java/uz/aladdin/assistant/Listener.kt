@@ -16,6 +16,7 @@ class Listener(private val ctx: Context) {
     private val main = Handler(Looper.getMainLooper())
 
     fun listen(
+        lang: String = Prefs.sttLang,
         onPartial: (String) -> Unit = {},
         onLevel: (Float) -> Unit = {},
         onResult: (String?) -> Unit,
@@ -49,7 +50,6 @@ class Listener(private val ctx: Context) {
             }
             override fun onEvent(eventType: Int, params: Bundle?) {}
         })
-        val lang = Prefs.sttLang
         val i = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang)

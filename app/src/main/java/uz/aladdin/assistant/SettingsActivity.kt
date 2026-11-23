@@ -1,6 +1,7 @@
 package uz.aladdin.assistant
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Button
@@ -21,6 +22,16 @@ class SettingsActivity : AppCompatActivity() {
         val tts = findViewById<SwitchCompat>(R.id.openaiTts)
         val auto = findViewById<SwitchCompat>(R.id.autoRead)
         val wake = findViewById<SwitchCompat>(R.id.wakeWord)
+        val car = findViewById<SwitchCompat>(R.id.carMic)
+        car.isChecked = Prefs.carMic
+        findViewById<Button>(R.id.battery).setOnClickListener { Honor.askBattery(this, force = true) }
+        findViewById<Button>(R.id.overlay).setOnClickListener {
+            try {
+                startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+            } catch (e: Exception) {
+                startActivity(Intent(Settings.ACTION_SETTINGS))
+            }
+        }
 
         key.setText(Prefs.apiKey)
         model.setText(Prefs.model)
@@ -38,6 +49,7 @@ class SettingsActivity : AppCompatActivity() {
             Prefs.openAiTts = tts.isChecked
             Prefs.autoRead = auto.isChecked
             Prefs.wakeWord = wake.isChecked
+            Prefs.carMic = car.isChecked
             AssistantService.start(this, AssistantService.ACTION_REFRESH)
             Toast.makeText(this, "Saqlandi", Toast.LENGTH_SHORT).show()
             finish()
