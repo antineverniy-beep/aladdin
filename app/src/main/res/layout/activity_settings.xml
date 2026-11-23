@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            style="@style/Title"
+            android:text="Sozlamalar" />
+
+        <TextView
+            style="@style/Label"
+            android:text="OpenAI API kaliti (sk-...)" />
+
+        <EditText
+            android:id="@+id/apiKey"
+            style="@style/Field"
+            android:hint="sk-..."
+            android:inputType="textPassword" />
+
+        <TextView
+            style="@style/Label"
+            android:text="Model (masalan: gpt-4.1-mini, gpt-4o-mini, gpt-5-mini)" />
+
+        <EditText
+            android:id="@+id/model"
+            style="@style/Field"
+            android:inputType="text" />
+
+        <TextView
+            style="@style/Label"
+            android:text="Ovoz (alloy, ash, coral, echo, nova, onyx, sage, shimmer)" />
+
+        <EditText
+            android:id="@+id/voice"
+            style="@style/Field"
+            android:inputType="text" />
+
+        <TextView
+            style="@style/Label"
+            android:text="Nutqni tanish tili (uz-UZ yoki ru-RU)" />
+
+        <EditText
+            android:id="@+id/lang"
+            style="@style/Field"
+            android:inputType="text" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/openaiTts"
+            style="@style/Switch"
+            android:text="OpenAI o'zbekcha ovozi (ravonroq)" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/autoRead"
+            style="@style/Switch"
+            android:text="Kelgan xabarlarni avtomatik o'qib berish" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/wakeWord"
+            style="@style/Switch"
+            android:text="«Aladdin» deb ovoz bilan chaqirish (batareyani ko'proq sarflaydi)" />
+
+        <Button
+            android:id="@+id/save"
+            style="@style/Btn"
+            android:backgroundTint="#2E7D32"
+            android:text="SAQLASH" />
+
+        <Button
+            android:id="@+id/test"
+            style="@style/Btn"
+            android:text="Ovozni sinash" />
+
+        <Button
+            android:id="@+id/notifAccess"
+            style="@style/Btn"
+            android:text="Telegram/WhatsApp xabarlariga ruxsat" />
+
+        <Button
+            android:id="@+id/defaultAssistant"
+            style="@style/Btn"
+            android:text="Standart yordamchi qilish" />
+
+        <TextView
+            style="@style/Label"
+            android:layout_marginTop="16dp"
+            android:text="Maslahat: «Standart yordamchi qilish» → «Raqamli yordamchi ilovasi» → Aladdin ni tanlang. Shunda «Uy» tugmasini uzoq bosib yoki quloqchin tugmasi bilan chaqirasiz." />
+    </LinearLayout>
+</ScrollView>
