@@ -23,6 +23,16 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Imzo kalitini tiklash (GitHub Secrets'dan)
+        env:
+          ALADDIN_KEYSTORE: ${{ secrets.ALADDIN_KEYSTORE }}
+        run: |
+          if [ -z "$ALADDIN_KEYSTORE" ]; then
+            echo "::error::ALADDIN_KEYSTORE secret topilmadi. Repozitoriy Settings → Secrets → Actions bo'limiga qo'shing."
+            exit 1
+          fi
+          echo "$ALADDIN_KEYSTORE" | base64 -d > app/aladdin.p12
+
       - name: APK yig'ish
         run: gradle assembleDebug --no-daemon --stacktrace
 

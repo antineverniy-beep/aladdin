@@ -11,14 +11,34 @@ android {
         applicationId = "uz.aladdin.assistant"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // Har bir GitHub yig'ishida versiya raqami o'sib boradi (eski ustidan yangilash uchun)
+        val build = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionCode = build
+        versionName = "1.$build"
+    }
+
+    // Doimiy imzo kaliti: barcha versiyalar bir xil imzolanadi,
+    // shuning uchun yangi APK eskisi ustidan o'rnatiladi va sozlamalar saqlanib qoladi.
+    // Kalit repozitoriyda emas — GitHub Secrets'dan (ALADDIN_KEYSTORE) olinadi.
+    val keyFile = file("aladdin.p12")
+    val keyPass = System.getenv("ALADDIN_KEY_PASSWORD") ?: "aladdin2026"
+    signingConfigs {
+        create("aladdin") {
+            storeFile = keyFile
+            storeType = "pkcs12"
+            storePassword = keyPass
+            keyAlias = "aladdin"
+            keyPassword = keyPass
+        }
     }
 
     buildTypes {
+        debug {
+            if (keyFile.exists()) signingConfig = signingConfigs.getByName("aladdin")
+        }
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (keyFile.exists()) signingConfigs.getByName("aladdin") else signingConfigs.getByName("debug")
         }
     }
     compileOptions {
