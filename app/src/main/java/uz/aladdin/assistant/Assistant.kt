@@ -52,13 +52,40 @@ object Assistant {
             BtAudio.start()
             val l = stt ?: Listener(ctx.applicationContext).also { stt = it }
             l.listen(
-                onPartial = { set(State.LISTENING, it) },
+                onPartial = { partial ->
+                    val cmd = stripEndWord(partial)
+                    if (cmd != null && cmd.isNotBlank()) {
+                        // "тезда" eshitildi — tinglashni darhol to'xtatib, buyruqni bajaramiz
+                        l.cancel()
+                        handle(ctx, cmd)
+                    } else {
+                        set(State.LISTENING, partial)
+                    }
+                },
                 onLevel = { levelListener?.invoke(it) },
             ) { text ->
-                if (text.isNullOrBlank()) finish("Eshitmadim. Qaytadan urinib ko'ring.")
-                else handle(ctx, text)
+                val cmd = text?.let { stripEndWord(it) ?: it }
+                if (cmd.isNullOrBlank()) finish("Eshitmadim. Qaytadan urinib ko'ring.")
+                else handle(ctx, cmd)
             }
         }
+    }
+
+    /**
+     * Buyruq "тезда" so'zi bilan tugasa — shu so'zsiz buyruqni qaytaradi, aks holda null.
+     * Masalan: "Санжарга телефон қил тезда" → "Санжарга телефон қил".
+     */
+    fun stripEndWord(text: String): String? {
+        val words = text.trim().split(Regex("\\s+")).toMutableList()
+        if (words.isEmpty()) return null
+        val last = Contacts.norm(words.last())
+        val prev = if (words.size >= 2) Contacts.norm(words[words.size - 2]) else ""
+        when {
+            last == "tezda" -> words.removeAt(words.size - 1)
+            last == "da" && prev == "tez" -> { words.removeAt(words.size - 1); words.removeAt(words.size - 1) }
+            else -> return null
+        }
+        return words.joinToString(" ").trim(' ', ',', '.', '!', '?')
     }
 
     /** "Привет Аладин" deb chaqirilganda: "Labbay" deydi va tinglaydi. */

@@ -56,7 +56,8 @@ class Listener(private val ctx: Context) {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, lang)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2500L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2500L)
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, ctx.packageName)
         }
         try {

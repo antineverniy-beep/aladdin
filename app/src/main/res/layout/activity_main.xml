@@ -63,7 +63,7 @@
             android:id="@+id/reply"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Salom! Tugmani bosing va gapiring: «Onamga qo'ng'iroq qil», «Telegram xabarlarini o'qi», «Musiqani keyingisiga o'tkaz»…"
+            android:text="Salom! «Привет Аладин» deng yoki tugmani bosing. Buyruq oxirida «тезда» desangiz, darhol bajaraman: «Санжарга телефон қил тезда», «Telegram xabarlarini o'qi tezda»."
             android:textColor="#FFFFFF"
             android:textSize="24sp" />
     </ScrollView>
